@@ -35,6 +35,10 @@ class Workspace(unittest.TestCase):
         result = self.run_tool('new', slug, '--title', title)
         return Path(result.stdout.strip())
 
+    def confirm(self, ident='SPEC-001'):
+        return self.run_tool('confirm', ident, '--by', '测试用户', '--evidence', '确认当前展示的方案',
+                             '--source', '隔离测试夹具中的模拟反馈，不代表真实项目授权')
+
     def complete_documents(self, folder):
         for name in ('spec.md', 'tasks.md'):
             path = folder / name

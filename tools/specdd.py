@@ -2,8 +2,9 @@
 """Dependency-free SpecDD administration. Python 3.9+. Does not execute product tests."""
 import argparse
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, datetime, timezone
 import json
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -38,10 +39,97 @@ def config(root):
     prefix = result.get('prefix', '')
     require(isinstance(prefix, str) and re.fullmatch(r'[A-Z][A-Z0-9]{1,15}', prefix),
             'prefix 必须是 2–16 位大写字母/数字，且以字母开头')
+    legacy = result.get('legacy_spec_ids', [])
+    require(isinstance(legacy, list) and all(isinstance(i, str) and re.fullmatch(re.escape(prefix) + r'-[0-9]{3,}', i) for i in legacy),
+            'legacy_spec_ids 必须是历史已实现需求编号列表')
+    require(len(set(legacy)) == len(legacy), '历史编号列表重复')
     return result
 
 
-def scan(root):
+# Only these execution-only sections are excluded. Unknown sections remain protected.
+EXECUTION_SECTIONS = {'用户确认', '实施与验证', '变更记录', '实施任务', '验证记录', '执行记录', '交付与验收', '关键决策与交接'}
+PROPOSAL_SECTIONS = {'背景与目标', '范围与非目标', '方案与影响', '验收标准'}
+
+
+def proposal_hash(folder):
+    text = (folder / 'spec.md').read_text(encoding='utf-8')
+    lines = text.splitlines()
+    require(lines and lines[0].startswith('# '), 'Spec 缺少标题')
+    protected = [lines[0].rstrip()]
+    seen, current, fence = [], None, None
+    for line in lines[1:]:
+        stripped = line.lstrip()
+        marker = re.match(r'(`{3,}|~{3,})', stripped)
+        in_fence = fence is not None
+        if marker:
+            value = marker.group(1)
+            if fence is None:
+                fence = value
+            elif value[0] == fence[0] and len(value) >= len(fence):
+                fence = None
+        if not in_fence and not marker and line.startswith('## '):
+            current = line[3:].strip()
+            seen.append(current)
+        if current is not None and current not in EXECUTION_SECTIONS:
+            normalized = line.rstrip()
+            if not in_fence and not marker:
+                normalized = re.sub(r'^(\s*[-*]\s+)\[[ xX]\]', r'\1[]', normalized)
+            protected.append(normalized)
+    require(all(seen.count(name) == 1 for name in PROPOSAL_SECTIONS),
+            'Spec 必须各包含一次：背景与目标、范围与非目标、方案与影响、验收标准')
+    return hashlib.sha256(('\n'.join(protected).strip() + '\n').encode('utf-8')).hexdigest()
+
+
+def approval_record(folder, ident):
+    path = folder / 'approval.json'
+    require(not path.is_symlink(), '确认记录不能为符号链接')
+    if not path.exists():
+        return {'schema_version': 1, 'spec_id': ident, 'confirmations': []}
+    try:
+        record = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise SpecError('确认记录无法读取，保留原记录后人工核对') from exc
+    require(isinstance(record, dict) and record.get('schema_version') == 1 and record.get('spec_id') == ident,
+            '确认记录版本或需求编号不匹配')
+    receipts = record.get('confirmations')
+    require(isinstance(receipts, list), '确认记录格式错误')
+    for receipt in receipts:
+        require(isinstance(receipt, dict) and all(isinstance(receipt.get(k), str) and receipt[k].strip()
+                for k in ('confirmed_by', 'confirmed_at', 'evidence', 'source', 'proposal_sha256')), '确认记录字段不完整')
+        require(re.fullmatch(r'[a-f0-9]{64}', receipt['proposal_sha256']), '确认指纹格式无效')
+        try:
+            stamp = datetime.fromisoformat(receipt['confirmed_at'])
+            require(stamp.tzinfo is not None, '确认时间须含时区')
+        except ValueError as exc:
+            raise SpecError('确认时间无效') from exc
+    return record
+
+
+def assert_confirmed(root, folder, ident, allow_legacy=False):
+    # Only historical implement entries are exempt from retroactive approval, never new development.
+    if allow_legacy and ident in config(root).get('legacy_spec_ids', []):
+        return
+    receipts = approval_record(folder, ident)['confirmations']
+    require(receipts, 'Spec 尚未获得用户明确确认：先展示方案，收到反馈后使用 confirm 记录')
+    require(receipts[-1]['proposal_sha256'] == proposal_hash(folder),
+            'Spec 方案已变化，原确认失效；先重新展示并取得用户确认')
+
+
+def confirm(root, ident, by, evidence, source):
+    matches = [e for e in scan(root, validate_state=False) if e[1] == ident]
+    require(len(matches) == 1, '未找到唯一需求: ' + ident)
+    require(all(value.strip() for value in (by, evidence, source)), '确认人、原话和来源均不能为空')
+    folder = matches[0][2]
+    record = approval_record(folder, ident)
+    record['confirmations'].append({'confirmed_at': datetime.now(timezone.utc).isoformat(),
+        'confirmed_by': by.strip(), 'evidence': evidence.strip(), 'source': source.strip(),
+        'proposal_sha256': proposal_hash(folder)})
+    (folder / 'approval.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    write_index(root)
+    return folder / 'approval.json'
+
+
+def scan(root, validate_state=True):
     prefix = config(root)['prefix']
     entries, ids = [], set()
     for state in STATES:
@@ -64,7 +152,9 @@ def scan(root):
             text = spec.read_text(encoding='utf-8')
             first = text.splitlines()[0] if text else ''
             require(first.startswith('# ' + ident + ' '), 'spec 标题编号不一致: ' + child.name)
-            if state == 'implement':
+            if validate_state and state in ('developing', 'implement'):
+                assert_confirmed(root, child, ident, allow_legacy=state == 'implement')
+            if validate_state and state == 'implement':
                 assert_complete(child)
             entries.append((state, ident, child, first[2:]))
     return entries
@@ -104,7 +194,7 @@ def index_text(entries):
 
 
 def write_index(root):
-    text = index_text(scan(root))
+    text = index_text(scan(root, validate_state=False))
     (root / 'spec/INDEX.md').write_text(text, encoding='utf-8')
 
 
@@ -146,12 +236,14 @@ def create(root, slug, title):
 
 
 def move(root, ident, target, reason, verified=False):
-    entries = scan(root)
+    entries = scan(root, validate_state=False)
     matches = [e for e in entries if e[1] == ident]
     require(len(matches) == 1, '未找到唯一需求: ' + ident)
     source, _, folder, _ = matches[0]
     require(target in TRANSITIONS[source], '不允许流转: ' + source + ' → ' + target)
     require(reason.strip() and '\n' not in reason and '\r' not in reason, '流转原因必须是非空单行文本')
+    if target in ('developing', 'implement'):
+        assert_confirmed(root, folder, ident)
     if target == 'implement':
         require(verified, '进入 implement 需要 --verified，表示已实际完成必要验证和适用验收')
         assert_complete(folder)
@@ -171,6 +263,11 @@ def main(argv=None):
     new = sub.add_parser('new', help='创建 planed 需求并同步总览')
     new.add_argument('slug')
     new.add_argument('--title', required=True)
+    confirmation = sub.add_parser('confirm', help='仅在用户查看当前方案并明确确认后记录；不会自动取得用户批准')
+    confirmation.add_argument('id')
+    confirmation.add_argument('--by', required=True)
+    confirmation.add_argument('--evidence', required=True)
+    confirmation.add_argument('--source', required=True)
     mv = sub.add_parser('move', help='移动状态；不会替你运行测试')
     mv.add_argument('id')
     mv.add_argument('state', choices=STATES)
@@ -191,6 +288,8 @@ def main(argv=None):
             with mutation_lock(root):
                 if args.command == 'new':
                     print(create(root, args.slug, args.title))
+                elif args.command == 'confirm':
+                    print(confirm(root, args.id, args.by, args.evidence, args.source))
                 elif args.command == 'move':
                     print(move(root, args.id, args.state, args.reason, args.verified))
                 else:

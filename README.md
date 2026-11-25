@@ -27,12 +27,14 @@ python3 tools/specdd.py new first-feature --title "第一个功能"
 python3 tools/specdd.py check
 ```
 
-打开新建目录补全 spec.md、tasks.md、verification.md，不把空模板当作完成的设计。
+打开新建目录补全 spec.md、tasks.md、verification.md，不把空模板当作完成的设计。随后向用户展示具体 Spec 并等待明确确认；原始需求本身不能代替展示后的反馈。
 
 ## 一次需求的完整流转
 
 ```sh
-# 先完善背景、范围、方案、AC 验收标准，再开始实现
+# 先完善并向用户展示 Spec；只有收到真实确认后，才记录并开始实现
+python3 tools/specdd.py confirm SPEC-001 --by "用户" \
+  --evidence "确认" --source "用户查看当前 Spec 后的会话消息"
 python3 tools/specdd.py move SPEC-001 developing --reason "需求已明确并开始实施"
 
 # 开发完成后编写 test case，按影响执行增量或全量回归
@@ -42,7 +44,7 @@ python3 tools/specdd.py move SPEC-001 implement --reason "实现、回归与适�
 python3 tools/specdd.py check
 ```
 
-`--verified` 是操作者对已完成验证的声明，不运行测试。需要用户验收时必须等待真实反馈。取消使用 `move <编号> discard --reason "原因"`；恢复、退回和限制见 [工具说明](docs/tooling.md)。
+`confirm` 只记录已经收到的用户反馈，不能由 Agent 自行批准；没有匹配确认不能进入开发。实质方案改变需重新展示确认。`--verified` 是操作者对已完成验证的声明，不运行测试。需要用户验收时必须等待真实反馈。取消使用 `move <编号> discard --reason "原因"`；恢复、退回和限制见 [工具说明](docs/tooling.md)。
 
 ## 迁入已有项目
 

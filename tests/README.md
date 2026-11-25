@@ -20,3 +20,5 @@
 全量：`python3 -m unittest discover -s tests/specdd -p 'test_*.py' -v`。
 单主题：`python3 -m unittest discover -s tests/specdd -p 'test_lifecycle.py' -v`（或替换为具体文件）。
 规范检查：`python3 tools/specdd.py check`。模板仓库的全量验证是工具全部测试、规范检查和文档链接检查；它们不是业务功能测试。
+
+确认门槛用例在 tests/specdd/test_confirmation.py；必须覆盖未确认拒绝、实质变更失效、纯进度更新不失效、历史迁入与重开，以及明确确认和成果验收互相独立。

@@ -6,6 +6,7 @@ from _support import Workspace
 class ConsistencyTests(Workspace):
     def test_stale_index_is_detected_and_repaired(self):
         self.create()
+        self.confirm()
         (self.root / 'spec/INDEX.md').write_text('旧总览')
         result = self.run_tool('check', ok=False)
         self.assertIn('INDEX 不同步', result.stderr)
@@ -14,6 +15,7 @@ class ConsistencyTests(Workspace):
 
     def test_duplicate_ids_across_states_are_rejected(self):
         folder = self.create()
+        self.confirm()
         shutil.copytree(folder, self.root / 'spec/discard/SPEC-001-other')
         self.assertIn('编号重复', self.run_tool('check', ok=False).stderr)
 
@@ -23,6 +25,7 @@ class ConsistencyTests(Workspace):
 
     def test_mismatched_heading_is_rejected(self):
         folder = self.create()
+        self.confirm()
         (folder / 'spec.md').write_text('# SPEC-999 错误标题\n')
         self.run_tool('check', ok=False)
 
@@ -43,6 +46,7 @@ class ConsistencyTests(Workspace):
 
     def test_completed_spec_with_unchecked_item_fails_check(self):
         self.create()
+        self.confirm()
         result = self.run_tool('move', 'SPEC-001', 'developing', '--reason', '开始')
         folder = Path(result.stdout.strip())
         self.complete_documents(folder)
@@ -54,5 +58,6 @@ class ConsistencyTests(Workspace):
 
     def test_noncanonical_number_is_rejected(self):
         folder = self.create()
+        self.confirm()
         folder.rename(folder.with_name('SPEC-0001-sample'))
         self.run_tool('check', ok=False)
