@@ -1,0 +1,14 @@
+# Keep application-specific ignore rules in the adopted project.
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+spec/.specdd.lock
+tmp/
