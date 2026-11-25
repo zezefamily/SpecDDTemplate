@@ -1,0 +1,8 @@
+---
+description: 读取并遵循仓库统一开发规范
+alwaysApply: true
+---
+
+# 项目指令入口
+
+开始任务前，必须用文件读取工具完整读取 [DEVELOPMENT.md](../../DEVELOPMENT.md)，再按其要求读取项目配置、Spec 和适用子目录规则。文件引用不是正文自动内联；不要仅阅读本入口就开始实现。

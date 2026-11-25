@@ -33,3 +33,7 @@
 不要补造历史用户确认。确为采用本规则之前已实现的需求，审查历史后可将编号显式列入 spec/config.json 的 legacy_spec_ids，并在基线中记录理由。仅 implement 中的这些编号免除追溯确认；它们仍须满足原有完成验证门槛。新需求、planed、developing、历史需求重开均无此豁免。
 
 历史在开发中的需求需要先向用户展示当前方案、取得真实确认，再继续实施。不要批量自动 confirm，不把采用规范的授权当作所有业务 Spec 的确认。
+
+## 多 Agent 接入
+
+合并 DEVELOPMENT.md 为本项目规则正文后，再合并适用的 AGENTS.md、CLAUDE.md、GEMINI.md、.cursor/rules/specdd.mdc 和 .github/copilot-instructions.md；不要覆盖已有入口。保留各工具原生格式，正文和业务配置仅维护一份。详细核实方式见 [接入说明](agent-integration.md)；无工具环境见 [手工流程](manual-workflow.md)。

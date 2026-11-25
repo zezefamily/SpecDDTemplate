@@ -1,6 +1,6 @@
 # SpecDD 工作流
 
-本目录是项目需求和开发进度入口。现状见 [项目基线](BASELINE.md)，进行中工作见 [需求总览](INDEX.md)，所有会话遵循 [开发守则](../AGENTS.md)。
+本目录是项目需求和开发进度入口。现状见 [项目基线](BASELINE.md)，进行中工作见 [需求总览](INDEX.md)，所有会话遵循 [开发规范](../DEVELOPMENT.md)。
 
 ## 状态与流转
 
@@ -55,3 +55,7 @@
 确认记录与成果验收分开：前者决定能否开工，后者决定是否完成。历史已实现需求保留真实记录，不补造过去的用户确认。
 
 工具用 `confirm` 命令保存 approval.json 并绑定当前方案指纹；没有匹配记录时，move 不允许进入开发。人工记录不能仅靠勾选或移动目录代替，细节见 [工具说明](../docs/tooling.md)。
+
+## 跨 Agent 接入
+
+统一约束见 [DEVELOPMENT.md](../DEVELOPMENT.md)，自动入口与显式读取方式见 [接入说明](../docs/agent-integration.md)，无工具时遵循 [手工流程](../docs/manual-workflow.md)。

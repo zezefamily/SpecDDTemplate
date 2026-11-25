@@ -1,6 +1,6 @@
 # SpecDDTemplate
 
-面向自建项目的 SpecDD（Specification-Driven Development）脚手架：用需求规格驱动实现，用测试与验收证据管理进度，用 AGENTS.md 让后续 AI 会话接续工作。
+面向自建项目的 SpecDD（Specification-Driven Development）脚手架：用需求规格驱动实现，用测试与验收证据管理进度，用统一开发规范和 Agent 入口让后续会话接续工作。
 
 模板与业务语言、框架、部署平台无关。应用代码由你的项目选择，不预装 Node、Web、Agent 或数据库。文档可直接使用；可选管理工具仅需要 Python 3.9+，不需要额外依赖。
 
@@ -64,7 +64,10 @@ python3 tools/specdd.py check
 ## 目录
 
 ```text
-AGENTS.md                 所有会话的开发守则
+DEVELOPMENT.md            唯一开发规范正文
+AGENTS.md / CLAUDE.md      Agent 发现/导入入口
+GEMINI.md                 Gemini 上下文入口
+.cursor/ / .github/       Cursor / Copilot 薄入口
 PROJECT.md                项目技术栈、命令和领域约束
 spec/
   config.json             需求编号前缀
@@ -82,3 +85,7 @@ docs/                     迁入、工具和模板维护说明
 ```
 
 模板业务需求目录初始为空，首个需求默认从 SPEC-001 开始。没有业务功能、生产部署或业务测试已完成的隐含声明。
+
+## 跨 Code Agent 的开发规范
+
+统一约束见 [DEVELOPMENT.md](DEVELOPMENT.md)，各工具入口及实际验证边界见 [接入说明](docs/agent-integration.md)。不支持自动加载的 Agent 使用通用启动提示；工具不可用时遵循 [手工流程](docs/manual-workflow.md)。

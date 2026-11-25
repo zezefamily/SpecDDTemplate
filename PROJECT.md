@@ -38,3 +38,5 @@
 - 发布前检查、回滚、持久数据兼容：待补充。
 - 当前不能自动执行的外部动作：待按项目授权补充。
 - 事实基线见 spec/BASELINE.md，需求与进度见 spec/INDEX.md。
+
+跨 Agent 的共同约束统一维护在 DEVELOPMENT.md，各入口只负责引导。实际读取与未实测状态见 docs/agent-integration.md；全局 Agent 配置不由模板自动修改。
